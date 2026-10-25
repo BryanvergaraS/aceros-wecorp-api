@@ -1,0 +1,16 @@
+# .NET
+bin/
+obj/
+.vs/
+*.user
+TestResults/
+
+# Secretos (nunca al repositorio)
+.env
+.env.*
+!.env.example
+appsettings.*.local.json
+
+# Frontend
+node_modules/
+dist/
