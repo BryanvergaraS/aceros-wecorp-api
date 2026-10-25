@@ -1,0 +1,11 @@
+@api = http://localhost:5080/api/v1
+
+### Login (cambie el email y la contraseña por los que configuró en Seed)
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{ "email": "admin@wecorp.cl", "password": "CambiarEstaClave123" }
+
+### Listar productos (pegue el token)
+GET {{api}}/productos?buscar=angulo&pagina=1&tamano=20
+Authorization: Bearer PEGUE_AQUI_EL_TOKEN
