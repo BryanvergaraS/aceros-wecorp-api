@@ -1,0 +1,101 @@
+@startuml er-catalogo
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 14
+skinparam titleFontSize 18
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam ArrowColor #1F3A5F
+skinparam ArrowThickness 1.1
+skinparam class {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+  HeaderBackgroundColor #DCE3EC
+}
+skinparam entity {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+}
+skinparam package {
+  BorderColor #7A8A9E
+  BackgroundColor #FAFBFD
+}
+skinparam note {
+  BackgroundColor #FFFDF2
+  BorderColor #B8A86A
+}
+skinparam sequence {
+  ParticipantBackgroundColor #EEF3F9
+  ParticipantBorderColor #1F3A5F
+  LifeLineBorderColor #7A8A9E
+  ActorBorderColor #1F3A5F
+  GroupBorderColor #7A8A9E
+}
+skinparam state {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+}
+skinparam database {
+  BackgroundColor #FFF4E8
+  BorderColor #E07B1A
+}
+skinparam node {
+  BackgroundColor #FAFBFD
+  BorderColor #1F3A5F
+}
+title Modelo entidad-relación — WeCorpCatalogoDB (API de Catálogo e Identidad)
+hide circle
+skinparam linetype ortho
+
+entity "Roles" as Roles {
+  * **Id** : int <<PK>>
+  --
+  * Nombre : nvarchar(30) <<UQ>>
+  Descripcion : nvarchar(200)
+}
+
+entity "Usuarios" as Usuarios {
+  * **Id** : int <<PK>>
+  --
+  * RolId : int <<FK>>
+  * Nombre : nvarchar(60)
+  * Apellido : nvarchar(60)
+  * Email : nvarchar(150) <<UQ>>
+  * PasswordHash : nvarchar(255)
+  Telefono : nvarchar(20)
+  * Activo : bit
+  * FechaRegistro : datetime2
+}
+
+entity "Familias" as Familias {
+  * **Id** : int <<PK>>
+  --
+  * Nombre : nvarchar(50) <<UQ>>
+  Descripcion : nvarchar(200)
+  * Activo : bit
+}
+
+entity "Productos" as Productos {
+  * **Id** : int <<PK>>
+  --
+  * FamiliaId : int <<FK>>
+  * Sku : nvarchar(50) <<UQ>>
+  * Nombre : nvarchar(150)
+  Descripcion : nvarchar(300)
+  * UnidadVenta : nvarchar(10) «CK Tira/Unidad»
+  PesoKg : decimal(10,3)
+  * PrecioVenta : decimal(12,0) «CK > 0»
+  * Stock : int «CK >= 0»
+  * StockMinimo : int «CK >= 0»
+  * Activo : bit
+  * FechaCreacion : datetime2
+}
+
+Roles ||--o{ Usuarios : "FK_Usuarios_Roles"
+Familias ||--o{ Productos : "FK_Productos_Familias"
+
+note right of Productos
+  Índices: UQ_Productos_Sku, IX_Productos_FamiliaId.
+  El CHECK de Stock >= 0 impide vender más
+  de lo disponible aunque haya dos ventas a la vez.
+end note
+@enduml

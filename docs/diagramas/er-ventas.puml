@@ -1,0 +1,95 @@
+@startuml er-ventas
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 14
+skinparam titleFontSize 18
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam ArrowColor #1F3A5F
+skinparam ArrowThickness 1.1
+skinparam class {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+  HeaderBackgroundColor #DCE3EC
+}
+skinparam entity {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+}
+skinparam package {
+  BorderColor #7A8A9E
+  BackgroundColor #FAFBFD
+}
+skinparam note {
+  BackgroundColor #FFFDF2
+  BorderColor #B8A86A
+}
+skinparam sequence {
+  ParticipantBackgroundColor #EEF3F9
+  ParticipantBorderColor #1F3A5F
+  LifeLineBorderColor #7A8A9E
+  ActorBorderColor #1F3A5F
+  GroupBorderColor #7A8A9E
+}
+skinparam state {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+}
+skinparam database {
+  BackgroundColor #FFF4E8
+  BorderColor #E07B1A
+}
+skinparam node {
+  BackgroundColor #FAFBFD
+  BorderColor #1F3A5F
+}
+title Modelo entidad-relación — WeCorpVentasDB (API de Ventas)
+hide circle
+skinparam linetype ortho
+
+entity "Clientes" as Clientes {
+  * **Id** : int <<PK>>
+  --
+  * Rut : nvarchar(12) <<UQ>>
+  * Nombre : nvarchar(150)
+  Email : nvarchar(150)
+  Telefono : nvarchar(20)
+  Direccion : nvarchar(200)
+  * FechaRegistro : datetime2
+}
+
+entity "NotasVenta" as NotasVenta {
+  * **Id** : int <<PK>>
+  --
+  * Folio : nvarchar(20) <<UQ>>
+  * ClienteId : int <<FK>>
+  * VendedorId : int
+  * VendedorNombre : nvarchar(120)
+  * Estado : nvarchar(15) «CK Pendiente/Pagada/Anulada»
+  * Total : decimal(12,0) «CK >= 0»
+  Observaciones : nvarchar(300)
+  * FechaCreacion : datetime2
+  FechaActualizacion : datetime2
+}
+
+entity "DetalleNotasVenta" as Detalle {
+  * **Id** : int <<PK>>
+  --
+  * NotaVentaId : int <<FK>>
+  * ProductoId : int
+  * Sku : nvarchar(50)
+  * NombreProducto : nvarchar(150)
+  * Cantidad : int «CK > 0»
+  * PrecioUnitario : decimal(12,0) «CK > 0»
+  Subtotal : decimal(23,0) <<calculada>>
+}
+
+Clientes ||--o{ NotasVenta : "FK_NotasVenta_Clientes"
+NotasVenta ||--|{ Detalle : "FK_DetalleNotasVenta_NotasVenta\n(ON DELETE CASCADE)"
+
+note bottom of NotasVenta
+  VendedorId y ProductoId referencian datos de
+  WeCorpCatalogoDB: no hay FK entre bases distintas.
+  Por eso se guarda una copia del nombre del vendedor
+  y del SKU, nombre y precio del producto.
+end note
+@enduml

@@ -1,0 +1,377 @@
+openapi: 3.0.3
+info:
+  title: API de Ventas — Aceros We-Corp
+  version: v1
+  description: |
+    Administra clientes y notas de venta. Valida el JWT emitido por la API de Catálogo e Identidad
+    (misma llave, emisor y audiencia) y consume a esa API mediante un cliente HTTP tipado
+    (IHttpClientFactory) para obtener precios y descontar o reponer stock.
+    Contrato diseñado antes de la implementación (Hito 2). Los cambios posteriores se registran en docs/openapi/CHANGELOG.md.
+servers:
+  - url: http://localhost:5082
+    description: Ejecución local
+tags:
+  - name: Clientes
+  - name: NotasVenta
+security:
+  - Bearer: []
+
+paths:
+  /api/v1/clientes:
+    get:
+      tags: [Clientes]
+      summary: Lista clientes con búsqueda por RUT o nombre y paginación (Administrador, Vendedor; RF06)
+      parameters:
+        - name: buscar
+          in: query
+          schema: { type: string }
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/Tamano'
+      responses:
+        '200':
+          description: Página de clientes
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginaClientes' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+    post:
+      tags: [Clientes]
+      summary: Registra un cliente con RUT válido y único (Administrador, Vendedor; RF06)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClienteGuardar' }
+      responses:
+        '201':
+          description: Creado
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Cliente' }
+        '400': { $ref: '#/components/responses/Validacion' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+
+  /api/v1/clientes/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Clientes]
+      summary: Obtiene un cliente (Administrador, Vendedor)
+      responses:
+        '200':
+          description: Cliente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Cliente' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+    put:
+      tags: [Clientes]
+      summary: Actualiza un cliente (Administrador, Vendedor; RF06)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClienteGuardar' }
+      responses:
+        '204': { description: Actualizado }
+        '400': { $ref: '#/components/responses/Validacion' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+    delete:
+      tags: [Clientes]
+      summary: Elimina un cliente sin notas de venta (Administrador; RF06)
+      responses:
+        '204': { description: Eliminado }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/Prohibido' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+
+  /api/v1/notas-venta:
+    get:
+      tags: [NotasVenta]
+      summary: Lista notas de venta con filtros (RF09)
+      description: El Vendedor solo recibe sus propias notas; el Administrador recibe todas.
+      parameters:
+        - name: estado
+          in: query
+          schema: { $ref: '#/components/schemas/EstadoNota' }
+        - name: desde
+          in: query
+          description: Fecha inicial (inclusive)
+          schema: { type: string, format: date }
+        - name: hasta
+          in: query
+          description: Fecha final (inclusive)
+          schema: { type: string, format: date }
+        - $ref: '#/components/parameters/Pagina'
+        - $ref: '#/components/parameters/Tamano'
+      responses:
+        '200':
+          description: Página de notas (sin detalle)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginaNotas' }
+        '400': { $ref: '#/components/responses/Validacion' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+    post:
+      tags: [NotasVenta]
+      summary: Emite una nota de venta y descuenta el stock en la API de Catálogo (RF07, RF08)
+      description: |
+        Usa el precio vigente del catálogo. Si el stock es insuficiente responde 422 y no registra la nota.
+        Si la API de Catálogo no responde en 5 segundos tras 2 reintentos, responde 503 y no registra la nota.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NotaVentaCrear' }
+      responses:
+        '201':
+          description: Nota emitida en estado Pendiente
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotaVenta' }
+        '400': { $ref: '#/components/responses/Validacion' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
+        '503': { $ref: '#/components/responses/ServicioNoDisponible' }
+
+  /api/v1/notas-venta/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [NotasVenta]
+      summary: Obtiene una nota con su detalle (RF09)
+      description: Para un Vendedor, una nota de otro vendedor responde 404.
+      responses:
+        '200':
+          description: Nota de venta
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotaVenta' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
+  /api/v1/notas-venta/{id}/estado:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    patch:
+      tags: [NotasVenta]
+      summary: Cambia el estado de una nota Pendiente a Pagada o Anulada (Administrador; RF10, RF11)
+      description: Al anular se repone el stock en la API de Catálogo. Una nota Pagada o Anulada no cambia de estado (422).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CambioEstado' }
+      responses:
+        '200':
+          description: Nota actualizada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NotaVenta' }
+        '400': { $ref: '#/components/responses/Validacion' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/Prohibido' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
+        '503': { $ref: '#/components/responses/ServicioNoDisponible' }
+
+  /health:
+    get:
+      tags: [NotasVenta]
+      summary: Estado de la API y de su base de datos (RNF07)
+      security: []
+      responses:
+        '200':
+          description: Healthy
+          content:
+            text/plain:
+              schema: { type: string, example: Healthy }
+        '503':
+          description: Unhealthy (la base de datos no responde)
+
+components:
+  securitySchemes:
+    Bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT emitido por la API de Catálogo (POST /api/v1/auth/login).
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int32 }
+    Pagina:
+      name: pagina
+      in: query
+      schema: { type: integer, format: int32, default: 1, minimum: 1 }
+    Tamano:
+      name: tamano
+      in: query
+      schema: { type: integer, format: int32, default: 20, minimum: 1, maximum: 50 }
+
+  responses:
+    Validacion:
+      description: Datos inválidos; errors detalla el problema de cada campo
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ValidationProblemDetails' }
+    NoAutenticado:
+      description: Sin token, token inválido o vencido
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Prohibido:
+      description: El rol del usuario no tiene permiso
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    NoEncontrado:
+      description: El cliente, la nota o un producto no existe
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Conflicto:
+      description: RUT repetido o cliente con notas de venta
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    ReglaNegocio:
+      description: Stock insuficiente, producto inactivo o transición de estado no permitida
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    ServicioNoDisponible:
+      description: La API de Catálogo no respondió a tiempo o falló
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+
+  schemas:
+    ProblemDetails:
+      type: object
+      properties:
+        type: { type: string, nullable: true }
+        title: { type: string, nullable: true }
+        status: { type: integer, format: int32, nullable: true }
+        detail: { type: string, nullable: true }
+        instance: { type: string, nullable: true }
+    ValidationProblemDetails:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items: { type: string }
+
+    Cliente:
+      type: object
+      properties:
+        id: { type: integer, format: int32 }
+        rut: { type: string, example: 12345678-5, description: Sin puntos y con guion }
+        nombre: { type: string }
+        email: { type: string, format: email, nullable: true }
+        telefono: { type: string, nullable: true }
+        direccion: { type: string, nullable: true }
+        fechaRegistro: { type: string, format: date-time }
+    ClienteGuardar:
+      type: object
+      required: [rut, nombre]
+      properties:
+        rut: { type: string, maxLength: 12, description: Se valida el dígito verificador (módulo 11); se aceptan puntos }
+        nombre: { type: string, maxLength: 150 }
+        email: { type: string, format: email, maxLength: 150, nullable: true }
+        telefono: { type: string, maxLength: 20, nullable: true }
+        direccion: { type: string, maxLength: 200, nullable: true }
+    PaginaClientes:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Cliente' }
+        total: { type: integer, format: int32 }
+        pagina: { type: integer, format: int32 }
+        tamanoPagina: { type: integer, format: int32 }
+
+    EstadoNota:
+      type: string
+      enum: [Pendiente, Pagada, Anulada]
+    LineaNota:
+      type: object
+      required: [productoId, cantidad]
+      properties:
+        productoId: { type: integer, format: int32, minimum: 1 }
+        cantidad: { type: integer, format: int32, minimum: 1 }
+    NotaVentaCrear:
+      type: object
+      required: [clienteId, lineas]
+      properties:
+        clienteId: { type: integer, format: int32, minimum: 1 }
+        observaciones: { type: string, maxLength: 300, nullable: true }
+        lineas:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/LineaNota' }
+    DetalleNota:
+      type: object
+      properties:
+        productoId: { type: integer, format: int32 }
+        sku: { type: string }
+        nombreProducto: { type: string }
+        cantidad: { type: integer, format: int32 }
+        precioUnitario: { type: number, format: double }
+        subtotal: { type: number, format: double }
+    NotaVentaResumen:
+      type: object
+      properties:
+        id: { type: integer, format: int32 }
+        folio: { type: string, example: NV-000001 }
+        clienteId: { type: integer, format: int32 }
+        clienteRut: { type: string }
+        clienteNombre: { type: string }
+        vendedorId: { type: integer, format: int32 }
+        vendedorNombre: { type: string }
+        estado: { $ref: '#/components/schemas/EstadoNota' }
+        total: { type: number, format: double }
+        fechaCreacion: { type: string, format: date-time }
+    NotaVenta:
+      allOf:
+        - $ref: '#/components/schemas/NotaVentaResumen'
+        - type: object
+          properties:
+            observaciones: { type: string, nullable: true }
+            fechaActualizacion: { type: string, format: date-time, nullable: true }
+            detalles:
+              type: array
+              items: { $ref: '#/components/schemas/DetalleNota' }
+    PaginaNotas:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/NotaVentaResumen' }
+        total: { type: integer, format: int32 }
+        pagina: { type: integer, format: int32 }
+        tamanoPagina: { type: integer, format: int32 }
+    CambioEstado:
+      type: object
+      required: [estado]
+      properties:
+        estado:
+          type: string
+          enum: [Pagada, Anulada]

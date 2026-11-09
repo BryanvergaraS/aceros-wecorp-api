@@ -1,0 +1,62 @@
+@startuml estados-nota-venta
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 14
+skinparam titleFontSize 18
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam ArrowColor #1F3A5F
+skinparam ArrowThickness 1.1
+skinparam class {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+  HeaderBackgroundColor #DCE3EC
+}
+skinparam entity {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+}
+skinparam package {
+  BorderColor #7A8A9E
+  BackgroundColor #FAFBFD
+}
+skinparam note {
+  BackgroundColor #FFFDF2
+  BorderColor #B8A86A
+}
+skinparam sequence {
+  ParticipantBackgroundColor #EEF3F9
+  ParticipantBorderColor #1F3A5F
+  LifeLineBorderColor #7A8A9E
+  ActorBorderColor #1F3A5F
+  GroupBorderColor #7A8A9E
+}
+skinparam state {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+}
+skinparam database {
+  BackgroundColor #FFF4E8
+  BorderColor #E07B1A
+}
+skinparam node {
+  BackgroundColor #FAFBFD
+  BorderColor #1F3A5F
+}
+title Diagrama de estados — Nota de venta (RF10, RF11)
+hide empty description
+
+[*] --> Pendiente : POST /notas-venta\n[stock descontado en Catálogo]
+Pendiente --> Pagada : PATCH estado = Pagada\n[rol Administrador]
+Pendiente --> Anulada : PATCH estado = Anulada\n[rol Administrador]\n/ reponer stock en Catálogo
+Pagada --> [*]
+Anulada --> [*]
+
+note right of Pagada
+  Estados finales: cualquier
+  otro cambio responde 422.
+end note
+note left of Pendiente
+  Si la reposición de stock falla (503),
+  la nota se mantiene en Pendiente.
+end note
+@enduml

@@ -1,0 +1,84 @@
+@startuml secuencia-error-token
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 14
+skinparam titleFontSize 18
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam ArrowColor #1F3A5F
+skinparam ArrowThickness 1.1
+skinparam class {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+  HeaderBackgroundColor #DCE3EC
+}
+skinparam entity {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+}
+skinparam package {
+  BorderColor #7A8A9E
+  BackgroundColor #FAFBFD
+}
+skinparam note {
+  BackgroundColor #FFFDF2
+  BorderColor #B8A86A
+}
+skinparam sequence {
+  ParticipantBackgroundColor #EEF3F9
+  ParticipantBorderColor #1F3A5F
+  LifeLineBorderColor #7A8A9E
+  ActorBorderColor #1F3A5F
+  GroupBorderColor #7A8A9E
+}
+skinparam state {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+}
+skinparam database {
+  BackgroundColor #FFF4E8
+  BorderColor #E07B1A
+}
+skinparam node {
+  BackgroundColor #FAFBFD
+  BorderColor #1F3A5F
+}
+title Secuencia 3 — Flujos de error: token vencido, acceso denegado y Catálogo caído
+autonumber
+actor "Usuario" as U
+participant "Cliente web\n(React)" as WEB
+participant "API de Ventas" as VEN
+participant "CatalogoClient" as CLI
+participant "API de Catálogo" as CAT
+
+group A. Token vencido (RNF02, RF12)
+  U -> WEB : Abre "Notas de venta"
+  WEB -> VEN : GET /ventas/api/v1/notas-venta\nBearer JWT (expirado)
+  VEN -> VEN : JwtBearer: ValidateLifetime falla
+  VEN --> WEB : 401 ProblemDetails
+  WEB -> WEB : Borra la sesión
+  WEB --> U : Redirige a /login\n"Tu sesión expiró. Inicia sesión nuevamente."
+end
+
+group B. Acceso denegado por rol (RNF03)
+  U -> WEB : Vendedor intenta marcar una nota como Pagada
+  WEB -> VEN : PATCH /ventas/api/v1/notas-venta/7/estado\nBearer JWT (rol Vendedor)
+  VEN -> VEN : [Authorize(Roles = "Administrador")]
+  VEN --> WEB : 403 ProblemDetails
+  WEB --> U : "No tienes permiso para esta acción."
+end
+
+group C. API de Catálogo no disponible (RNF06)
+  WEB -> VEN : POST /ventas/api/v1/notas-venta
+  VEN -> CLI : DescontarStockAsync(...)
+  loop hasta 1 intento + 2 reintentos (solo si la conexión fue rechazada)
+    CLI -[#red]x CAT : POST /api/v1/productos/stock/descontar\nconexión rechazada
+  end
+  note over CLI, CAT
+    Un timeout (5 s) o un 5xx NO se reintenta:
+    Catálogo podría haber descontado ya (ADR 0003).
+  end note
+  CLI --> VEN : ServicioNoDisponibleException
+  VEN --> WEB : 503 ProblemDetails (la nota no se registra)
+  WEB --> U : "El servicio de catálogo no está disponible.\nIntenta nuevamente."
+end
+@enduml

@@ -1,0 +1,104 @@
+@startuml casos-de-uso
+' ============================================================
+'  Diagrama de casos de uso - Sistema de ventas Aceros We-Corp
+'  Evaluación 3 - Construcción de Software
+'  Versión 1.1 (Hito 1)
+' ============================================================
+title Diagrama de casos de uso — Sistema de ventas Aceros We-Corp
+
+left to right direction
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 14
+skinparam titleFontSize 18
+skinparam shadowing false
+skinparam roundCorner 12
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam nodesep 18
+skinparam ranksep 70
+skinparam ArrowColor #1F3A5F
+skinparam ArrowThickness 1.2
+skinparam actor {
+  BackgroundColor #FFFFFF
+  BorderColor #1F3A5F
+}
+skinparam usecase {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+  BorderThickness 1.2
+  BackgroundColor<<incluido>> #FFF4E8
+  BorderColor<<incluido>> #E07B1A
+}
+skinparam rectangle {
+  BorderColor #1F3A5F
+  BorderThickness 1.5
+  FontSize 15
+}
+skinparam package {
+  BorderColor #7A8A9E
+  BackgroundColor #FAFBFD
+  FontSize 14
+}
+skinparam legend {
+  BackgroundColor #FFFFFF
+  BorderColor #7A8A9E
+  FontSize 13
+}
+skinparam note {
+  BackgroundColor #FFFDF2
+  BorderColor #B8A86A
+}
+hide stereotype
+
+actor "Vendedor" as V
+actor "Administrador" as A
+V <|-- A
+
+rectangle "Sistema de ventas Aceros We-Corp" {
+
+  package "API de Catálogo e Identidad" {
+    usecase "CU01\nIniciar sesión" as CU01
+    usecase "CU02\nConsultar catálogo" as CU02
+    usecase "CU03\nGestionar productos" as CU03
+    usecase "CU04\nGestionar familias" as CU04
+    usecase "CU05\nGestionar usuarios" as CU05
+  }
+
+  package "API de Ventas" {
+    usecase "CU06\nGestionar clientes" as CU06
+    usecase "CU07\nEmitir nota de venta" as CU07
+    usecase "CU08\nValidar y descontar stock" as CU08 <<incluido>>
+    usecase "CU09\nConsultar notas de venta" as CU09
+    usecase "CU10\nCambiar estado de la nota" as CU10
+    usecase "CU11\nReponer stock" as CU11 <<incluido>>
+  }
+}
+
+' Vendedor (y por herencia, Administrador)
+V --> CU01
+V --> CU02
+V --> CU06
+V --> CU07
+V --> CU09
+
+' Solo Administrador
+A --> CU03
+A --> CU04
+A --> CU05
+A --> CU10
+
+' Relaciones entre casos de uso
+CU07 ..> CU08 : <<include>>
+CU11 .up.> CU10 : <<extend>>\n[nota anulada]
+
+
+note bottom of A
+  Hereda todos los casos
+  de uso del Vendedor.
+end note
+
+legend bottom right
+  Naranjo: la API de Ventas los ejecuta llamando
+  a la API de Catálogo (HTTP + JWT).
+endlegend
+@enduml

@@ -1,0 +1,545 @@
+openapi: 3.0.3
+info:
+  title: API de Catálogo e Identidad — Aceros We-Corp
+  version: v1
+  description: |
+    Autentica a los usuarios y emite el JWT que validan las demás APIs del sistema.
+    Administra el catálogo (familias y productos), el stock y los usuarios.
+    Contrato diseñado antes de la implementación (Hito 2). Los cambios posteriores se registran en docs/openapi/CHANGELOG.md.
+servers:
+  - url: http://localhost:5081
+    description: Ejecución local
+tags:
+  - name: Auth
+  - name: Familias
+  - name: Productos
+  - name: Stock
+  - name: Usuarios
+security:
+  - Bearer: []
+
+paths:
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Inicia sesión y entrega un JWT con el rol del usuario (RF01)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Credenciales válidas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '400': { $ref: '#/components/responses/Validacion' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+
+  /api/v1/familias:
+    get:
+      tags: [Familias]
+      summary: Lista las familias (Administrador, Vendedor)
+      responses:
+        '200':
+          description: Familias ordenadas por nombre
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Familia' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+    post:
+      tags: [Familias]
+      summary: Crea una familia (Administrador, RF04)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FamiliaGuardar' }
+      responses:
+        '201':
+          description: Creada
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Familia' }
+        '400': { $ref: '#/components/responses/Validacion' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/Prohibido' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+
+  /api/v1/familias/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Familias]
+      summary: Obtiene una familia (Administrador, Vendedor)
+      responses:
+        '200':
+          description: Familia
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Familia' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+    put:
+      tags: [Familias]
+      summary: Actualiza una familia (Administrador)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FamiliaGuardar' }
+      responses:
+        '204': { description: Actualizada }
+        '400': { $ref: '#/components/responses/Validacion' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/Prohibido' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+    delete:
+      tags: [Familias]
+      summary: Elimina una familia sin productos (Administrador)
+      responses:
+        '204': { description: Eliminada }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/Prohibido' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+
+  /api/v1/productos:
+    get:
+      tags: [Productos]
+      summary: Lista productos con búsqueda, filtro por familia y paginación (RF02)
+      description: El Vendedor solo ve productos activos; el Administrador ve todos.
+      parameters:
+        - name: buscar
+          in: query
+          description: Texto contenido en el nombre o el SKU
+          schema: { type: string }
+        - name: familiaId
+          in: query
+          schema: { type: integer, format: int32 }
+        - name: pagina
+          in: query
+          schema: { type: integer, format: int32, default: 1, minimum: 1 }
+        - name: tamano
+          in: query
+          schema: { type: integer, format: int32, default: 20, minimum: 1, maximum: 50 }
+      responses:
+        '200':
+          description: Página de productos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginaProductos' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+    post:
+      tags: [Productos]
+      summary: Crea un producto (Administrador, RF03)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductoGuardar' }
+      responses:
+        '201':
+          description: Creado
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Producto' }
+        '400': { $ref: '#/components/responses/Validacion' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/Prohibido' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
+
+  /api/v1/productos/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Productos]
+      summary: Obtiene un producto (Administrador, Vendedor)
+      responses:
+        '200':
+          description: Producto
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Producto' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+    put:
+      tags: [Productos]
+      summary: Actualiza un producto (Administrador, RF03)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProductoGuardar' }
+      responses:
+        '204': { description: Actualizado }
+        '400': { $ref: '#/components/responses/Validacion' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/Prohibido' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
+    delete:
+      tags: [Productos]
+      summary: Elimina un producto (Administrador, RF03)
+      description: Las notas de venta guardan una copia del SKU, nombre y precio, por lo que el historial no se pierde.
+      responses:
+        '204': { description: Eliminado }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/Prohibido' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+
+  /api/v1/productos/stock/descontar:
+    post:
+      tags: [Stock]
+      summary: Verifica y descuenta stock de varios productos en una sola operación (RF08)
+      description: |
+        Lo usa la API de Ventas al emitir una nota, reenviando el JWT del usuario.
+        Si algún producto no tiene stock suficiente o está inactivo, no se descuenta ninguno (422).
+        Si otra venta modificó el mismo stock al mismo tiempo, responde 409 y no descuenta nada.
+        La respuesta incluye el precio vigente de cada producto.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MovimientoStock' }
+      responses:
+        '200':
+          description: Stock descontado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MovimientoStockResultado' }
+        '400': { $ref: '#/components/responses/Validacion' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
+
+  /api/v1/productos/stock/reponer:
+    post:
+      tags: [Stock]
+      summary: Repone stock de varios productos (anulación de nota o compensación, RF11)
+      description: Los productos que ya no existen se omiten, para que una nota antigua se pueda anular igual.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MovimientoStock' }
+      responses:
+        '200':
+          description: Stock repuesto
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MovimientoStockResultado' }
+        '400': { $ref: '#/components/responses/Validacion' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+
+  /api/v1/usuarios:
+    get:
+      tags: [Usuarios]
+      summary: Lista los usuarios (Administrador, RF05)
+      responses:
+        '200':
+          description: Usuarios
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Usuario' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/Prohibido' }
+    post:
+      tags: [Usuarios]
+      summary: Crea un usuario con un rol (Administrador, RF05)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UsuarioCrear' }
+      responses:
+        '201':
+          description: Creado
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Usuario' }
+        '400': { $ref: '#/components/responses/Validacion' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/Prohibido' }
+        '409': { $ref: '#/components/responses/Conflicto' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
+
+  /api/v1/usuarios/roles:
+    get:
+      tags: [Usuarios]
+      summary: Lista los roles disponibles (Administrador)
+      responses:
+        '200':
+          description: Roles
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Rol' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/Prohibido' }
+
+  /api/v1/usuarios/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Usuarios]
+      summary: Obtiene un usuario (Administrador)
+      responses:
+        '200':
+          description: Usuario
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Usuario' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/Prohibido' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+    put:
+      tags: [Usuarios]
+      summary: Actualiza datos, rol o estado de un usuario (Administrador, RF05)
+      description: Un administrador no puede desactivarse a sí mismo (422).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UsuarioActualizar' }
+      responses:
+        '204': { description: Actualizado }
+        '400': { $ref: '#/components/responses/Validacion' }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/Prohibido' }
+        '404': { $ref: '#/components/responses/NoEncontrado' }
+        '422': { $ref: '#/components/responses/ReglaNegocio' }
+
+  /health:
+    get:
+      tags: [Auth]
+      summary: Estado de la API y de su base de datos (RNF07)
+      security: []
+      responses:
+        '200':
+          description: Healthy
+          content:
+            text/plain:
+              schema: { type: string, example: Healthy }
+        '503':
+          description: Unhealthy (la base de datos no responde)
+
+components:
+  securitySchemes:
+    Bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT emitido por POST /api/v1/auth/login (HMAC-SHA256, expira en 60 minutos).
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int32 }
+
+  responses:
+    Validacion:
+      description: Datos inválidos; errors detalla el problema de cada campo
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ValidationProblemDetails' }
+    NoAutenticado:
+      description: Sin token, token inválido o vencido, o credenciales incorrectas
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Prohibido:
+      description: El rol del usuario no tiene permiso
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    NoEncontrado:
+      description: El recurso no existe
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    Conflicto:
+      description: Dato repetido (SKU, email, nombre) o registro en uso
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+    ReglaNegocio:
+      description: Datos válidos que rompen una regla de negocio (por ejemplo, stock insuficiente)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetails' }
+
+  schemas:
+    ProblemDetails:
+      type: object
+      description: Modelo de errores RFC 7807, común a ambas APIs
+      properties:
+        type: { type: string, nullable: true }
+        title: { type: string, nullable: true }
+        status: { type: integer, format: int32, nullable: true }
+        detail: { type: string, nullable: true }
+        instance: { type: string, nullable: true }
+    ValidationProblemDetails:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items: { type: string }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, example: vendedor@wecorp.cl }
+        password: { type: string, format: password }
+    LoginResponse:
+      type: object
+      properties:
+        token: { type: string }
+        expira: { type: string, format: date-time }
+        usuario: { $ref: '#/components/schemas/Usuario' }
+
+    Rol:
+      type: object
+      properties:
+        id: { type: integer, format: int32 }
+        nombre: { type: string, enum: [Administrador, Vendedor] }
+        descripcion: { type: string, nullable: true }
+    Usuario:
+      type: object
+      properties:
+        id: { type: integer, format: int32 }
+        nombre: { type: string }
+        apellido: { type: string }
+        email: { type: string, format: email }
+        telefono: { type: string, nullable: true }
+        rol: { type: string, enum: [Administrador, Vendedor] }
+        activo: { type: boolean }
+        fechaRegistro: { type: string, format: date-time }
+    UsuarioCrear:
+      type: object
+      required: [rolId, nombre, apellido, email, password]
+      properties:
+        rolId: { type: integer, format: int32, minimum: 1 }
+        nombre: { type: string, maxLength: 60 }
+        apellido: { type: string, maxLength: 60 }
+        email: { type: string, format: email, maxLength: 150 }
+        password: { type: string, format: password, minLength: 8, maxLength: 100 }
+        telefono: { type: string, maxLength: 20, nullable: true }
+    UsuarioActualizar:
+      type: object
+      required: [rolId, nombre, apellido, activo]
+      properties:
+        rolId: { type: integer, format: int32, minimum: 1 }
+        nombre: { type: string, maxLength: 60 }
+        apellido: { type: string, maxLength: 60 }
+        telefono: { type: string, maxLength: 20, nullable: true }
+        activo: { type: boolean }
+
+    Familia:
+      type: object
+      properties:
+        id: { type: integer, format: int32 }
+        nombre: { type: string }
+        descripcion: { type: string, nullable: true }
+        activo: { type: boolean }
+    FamiliaGuardar:
+      type: object
+      required: [nombre]
+      properties:
+        nombre: { type: string, maxLength: 50 }
+        descripcion: { type: string, maxLength: 200, nullable: true }
+        activo: { type: boolean, default: true }
+
+    Producto:
+      type: object
+      properties:
+        id: { type: integer, format: int32 }
+        familiaId: { type: integer, format: int32 }
+        familiaNombre: { type: string }
+        sku: { type: string }
+        nombre: { type: string }
+        descripcion: { type: string, nullable: true }
+        unidadVenta: { type: string, enum: [Tira, Unidad] }
+        pesoKg: { type: number, format: double, nullable: true }
+        precioVenta: { type: number, format: double, description: Pesos chilenos }
+        stock: { type: integer, format: int32 }
+        stockMinimo: { type: integer, format: int32 }
+        activo: { type: boolean }
+        fechaCreacion: { type: string, format: date-time }
+    ProductoGuardar:
+      type: object
+      required: [familiaId, sku, nombre, unidadVenta, precioVenta, stock, stockMinimo]
+      properties:
+        familiaId: { type: integer, format: int32, minimum: 1 }
+        sku: { type: string, maxLength: 50 }
+        nombre: { type: string, maxLength: 150 }
+        descripcion: { type: string, maxLength: 300, nullable: true }
+        unidadVenta: { type: string, enum: [Tira, Unidad] }
+        pesoKg: { type: number, format: double, minimum: 0, nullable: true }
+        precioVenta: { type: number, format: double, minimum: 1 }
+        stock: { type: integer, format: int32, minimum: 0 }
+        stockMinimo: { type: integer, format: int32, minimum: 0 }
+        activo: { type: boolean, default: true }
+    PaginaProductos:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Producto' }
+        total: { type: integer, format: int32 }
+        pagina: { type: integer, format: int32 }
+        tamanoPagina: { type: integer, format: int32 }
+
+    LineaStock:
+      type: object
+      required: [productoId, cantidad]
+      properties:
+        productoId: { type: integer, format: int32, minimum: 1 }
+        cantidad: { type: integer, format: int32, minimum: 1 }
+    MovimientoStock:
+      type: object
+      required: [lineas]
+      properties:
+        lineas:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/LineaStock' }
+    LineaStockResultado:
+      type: object
+      properties:
+        productoId: { type: integer, format: int32 }
+        sku: { type: string }
+        nombre: { type: string }
+        precioUnitario: { type: number, format: double }
+        cantidad: { type: integer, format: int32 }
+        stockRestante: { type: integer, format: int32 }
+    MovimientoStockResultado:
+      type: object
+      properties:
+        lineas:
+          type: array
+          items: { $ref: '#/components/schemas/LineaStockResultado' }

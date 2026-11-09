@@ -1,0 +1,73 @@
+@startuml secuencia-login
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 14
+skinparam titleFontSize 18
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam ArrowColor #1F3A5F
+skinparam ArrowThickness 1.1
+skinparam class {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+  HeaderBackgroundColor #DCE3EC
+}
+skinparam entity {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+}
+skinparam package {
+  BorderColor #7A8A9E
+  BackgroundColor #FAFBFD
+}
+skinparam note {
+  BackgroundColor #FFFDF2
+  BorderColor #B8A86A
+}
+skinparam sequence {
+  ParticipantBackgroundColor #EEF3F9
+  ParticipantBorderColor #1F3A5F
+  LifeLineBorderColor #7A8A9E
+  ActorBorderColor #1F3A5F
+  GroupBorderColor #7A8A9E
+}
+skinparam state {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+}
+skinparam database {
+  BackgroundColor #FFF4E8
+  BorderColor #E07B1A
+}
+skinparam node {
+  BackgroundColor #FAFBFD
+  BorderColor #1F3A5F
+}
+title Secuencia 1 — Inicio de sesión y obtención del JWT (CU01, RF01)
+autonumber
+actor "Vendedor" as U
+participant "Cliente web\n(React)" as WEB
+participant "API de Catálogo\nAuthController" as CAT
+participant "AuthService" as AUTH
+participant "TokenService" as TOK
+database "WeCorpCatalogoDB" as DB
+
+U -> WEB : Ingresa email y contraseña
+WEB -> CAT : POST /catalogo/api/v1/auth/login\n{ email, password }
+CAT -> CAT : Valida el modelo (DataAnnotations)
+CAT -> AUTH : LoginAsync(request)
+AUTH -> DB : SELECT Usuario + Rol WHERE Email = @email
+DB --> AUTH : Usuario (PasswordHash, Activo, Rol)
+AUTH -> AUTH : BCrypt.Verify(password, PasswordHash)
+alt credenciales válidas y usuario activo
+  AUTH -> TOK : Generar(usuario, rol)
+  TOK --> AUTH : JWT HS256 (id, nombre, email, rol, exp = 60 min)
+  AUTH --> CAT : LoginResponse
+  CAT --> WEB : 200 OK { token, expira, usuario }
+  WEB -> WEB : Guarda la sesión y programa\nel cierre al llegar "expira"
+  WEB --> U : Muestra el menú según el rol
+else contraseña incorrecta o usuario inactivo
+  AUTH --> CAT : null
+  CAT --> WEB : 401 ProblemDetails "Credenciales inválidas"
+  WEB --> U : "El email o la contraseña no son correctos."
+end
+@enduml

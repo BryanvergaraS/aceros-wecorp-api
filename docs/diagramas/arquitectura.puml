@@ -1,0 +1,79 @@
+@startuml arquitectura
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 14
+skinparam titleFontSize 18
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam ArrowColor #1F3A5F
+skinparam ArrowThickness 1.1
+skinparam class {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+  HeaderBackgroundColor #DCE3EC
+}
+skinparam entity {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+}
+skinparam package {
+  BorderColor #7A8A9E
+  BackgroundColor #FAFBFD
+}
+skinparam note {
+  BackgroundColor #FFFDF2
+  BorderColor #B8A86A
+}
+skinparam sequence {
+  ParticipantBackgroundColor #EEF3F9
+  ParticipantBorderColor #1F3A5F
+  LifeLineBorderColor #7A8A9E
+  ActorBorderColor #1F3A5F
+  GroupBorderColor #7A8A9E
+}
+skinparam state {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+}
+skinparam database {
+  BackgroundColor #FFF4E8
+  BorderColor #E07B1A
+}
+skinparam node {
+  BackgroundColor #FAFBFD
+  BorderColor #1F3A5F
+}
+title Arquitectura — contexto y contenedores del sistema Aceros We-Corp
+skinparam componentStyle rectangle
+skinparam actorStyle awesome
+
+actor "Vendedor" as V
+actor "Administrador" as A
+
+rectangle "Sistema de ventas Aceros We-Corp" #FAFBFD {
+  component "Cliente web\n[React 19 + Vite]\nSPA servida por nginx\n(puerto 8080 en Docker,\n5173 en desarrollo)" as WEB
+  component "API de Catálogo e Identidad\n[ASP.NET Core 10, controladores]\nEmite el JWT. Familias, productos,\nstock y usuarios\n(puerto 5081)" as CAT
+  component "API de Ventas\n[ASP.NET Core 10, controladores]\nValida el JWT. Clientes y\nnotas de venta\n(puerto 5082)" as VEN
+  database "WeCorpCatalogoDB\n[SQL Server]" as DBC
+  database "WeCorpVentasDB\n[SQL Server]" as DBV
+}
+
+V --> WEB : HTTPS (navegador)
+A --> WEB : HTTPS (navegador)
+WEB --> CAT : HTTP/JSON\n/catalogo/api/v1/*\nAuthorization: Bearer JWT
+WEB --> VEN : HTTP/JSON\n/ventas/api/v1/*\nAuthorization: Bearer JWT
+VEN --> CAT : HTTP/JSON + JWT reenviado\nIHttpClientFactory (CatalogoClient)\ntimeout 5 s, reintentos solo\nsi la conexión falla
+CAT --> DBC : EF Core / TDS 1433
+VEN --> DBV : EF Core / TDS 1433
+
+note right of VEN
+  Integración entre servicios:
+  POST /api/v1/productos/stock/descontar
+  POST /api/v1/productos/stock/reponer
+  Si Catálogo no responde: 503 ProblemDetails.
+end note
+
+note bottom of CAT
+  Llave JWT compartida (Jwt~__Key) por variable
+  de entorno; mismo emisor y audiencia en ambas APIs.
+end note
+@enduml
