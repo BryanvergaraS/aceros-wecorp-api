@@ -1,0 +1,91 @@
+@startuml despliegue
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 14
+skinparam titleFontSize 18
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam ArrowColor #1F3A5F
+skinparam ArrowThickness 1.1
+skinparam class {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+  HeaderBackgroundColor #DCE3EC
+}
+skinparam entity {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+}
+skinparam package {
+  BorderColor #7A8A9E
+  BackgroundColor #FAFBFD
+}
+skinparam note {
+  BackgroundColor #FFFDF2
+  BorderColor #B8A86A
+}
+skinparam sequence {
+  ParticipantBackgroundColor #EEF3F9
+  ParticipantBorderColor #1F3A5F
+  LifeLineBorderColor #7A8A9E
+  ActorBorderColor #1F3A5F
+  GroupBorderColor #7A8A9E
+}
+skinparam state {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+}
+skinparam database {
+  BackgroundColor #FFF4E8
+  BorderColor #E07B1A
+}
+skinparam node {
+  BackgroundColor #FAFBFD
+  BorderColor #1F3A5F
+}
+title Diagrama de despliegue — docker compose (un solo comando: docker compose up --build)
+
+node "Equipo local (Docker Desktop)" {
+  node "cliente-web\n[nginx:1.27-alpine]" as WEBN {
+    artifact "SPA React (dist/)" as SPA
+  }
+  node "api-catalogo\n[mcr.microsoft.com/dotnet/aspnet:10.0]" as CATN {
+    artifact "WeCorp.Catalogo.Api.dll" as CATA
+  }
+  node "api-ventas\n[mcr.microsoft.com/dotnet/aspnet:10.0]" as VENN {
+    artifact "WeCorp.Ventas.Api.dll" as VENA
+  }
+  node "sqlserver\n[mcr.microsoft.com/mssql/server:2022-latest]" as SQLN {
+    database "WeCorpCatalogoDB" as DBC
+    database "WeCorpVentasDB" as DBV
+  }
+}
+
+actor "Navegador" as NAV
+NAV --> WEBN : http://localhost:8080
+WEBN --> CATN : /catalogo/* → api-catalogo:8080
+WEBN --> VENN : /ventas/* → api-ventas:8080
+VENN --> CATN : http://api-catalogo:8080 (Catalogo~__BaseUrl)
+CATN --> SQLN : sqlserver:1433
+VENN --> SQLN : sqlserver:1433
+
+note bottom of CATN
+  Puertos: 5081 → 8080
+  Variables: Jwt~__Key, ConnectionStrings~__CatalogoDb,
+  Seed~__AdminEmail, Seed~__AdminPassword,
+  Seed~__VendedorEmail, Seed~__VendedorPassword
+end note
+note bottom of VENN
+  Puertos: 5082 → 8080
+  Variables: Jwt~__Key, ConnectionStrings~__VentasDb,
+  Catalogo~__BaseUrl
+end note
+note bottom of SQLN
+  Puerto: 14330 → 1433
+  Variables: ACCEPT_EULA, MSSQL_SA_PASSWORD (SA_PASSWORD)
+  Volumen: sqldata
+end note
+note top of WEBN
+  Puerto: 8080 → 80
+  Depende de: api-catalogo, api-ventas
+end note
+@enduml

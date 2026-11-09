@@ -1,0 +1,139 @@
+@startuml clases-dominio
+skinparam defaultFontName "Times New Roman"
+skinparam defaultFontSize 14
+skinparam titleFontSize 18
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam ArrowColor #1F3A5F
+skinparam ArrowThickness 1.1
+skinparam class {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+  HeaderBackgroundColor #DCE3EC
+}
+skinparam entity {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+}
+skinparam package {
+  BorderColor #7A8A9E
+  BackgroundColor #FAFBFD
+}
+skinparam note {
+  BackgroundColor #FFFDF2
+  BorderColor #B8A86A
+}
+skinparam sequence {
+  ParticipantBackgroundColor #EEF3F9
+  ParticipantBorderColor #1F3A5F
+  LifeLineBorderColor #7A8A9E
+  ActorBorderColor #1F3A5F
+  GroupBorderColor #7A8A9E
+}
+skinparam state {
+  BackgroundColor #EEF3F9
+  BorderColor #1F3A5F
+}
+skinparam database {
+  BackgroundColor #FFF4E8
+  BorderColor #E07B1A
+}
+skinparam node {
+  BackgroundColor #FAFBFD
+  BorderColor #1F3A5F
+}
+title Diagrama de clases de dominio — Sistema de ventas Aceros We-Corp
+hide empty methods
+
+package "API de Catálogo e Identidad" {
+  class Rol {
+    +Id: int
+    +Nombre: string {Administrador | Vendedor}
+    +Descripcion: string?
+  }
+  class Usuario {
+    +Id: int
+    +Nombre: string
+    +Apellido: string
+    +Email: string {único}
+    +PasswordHash: string
+    +Telefono: string?
+    +Activo: bool
+    +FechaRegistro: DateTime
+  }
+  class Familia {
+    +Id: int
+    +Nombre: string {único}
+    +Descripcion: string?
+    +Activo: bool
+  }
+  class Producto {
+    +Id: int
+    +Sku: string {único}
+    +Nombre: string
+    +Descripcion: string?
+    +UnidadVenta: string {Tira | Unidad}
+    +PesoKg: decimal?
+    +PrecioVenta: decimal {> 0}
+    +Stock: int {>= 0}
+    +StockMinimo: int
+    +Activo: bool
+    +FechaCreacion: DateTime
+    +TieneStock(cantidad: int): bool
+  }
+}
+
+package "API de Ventas" {
+  class Cliente {
+    +Id: int
+    +Rut: string {único, módulo 11}
+    +Nombre: string
+    +Email: string?
+    +Telefono: string?
+    +Direccion: string?
+    +FechaRegistro: DateTime
+  }
+  class NotaVenta {
+    +Id: int
+    +Folio: string {NV-000001}
+    +VendedorId: int
+    +VendedorNombre: string
+    +Estado: EstadoNota
+    +Total: decimal
+    +Observaciones: string?
+    +FechaCreacion: DateTime
+    +FechaActualizacion: DateTime?
+    +PuedeCambiarA(nuevo: EstadoNota): bool
+    +CalcularTotal(): decimal
+  }
+  class DetalleNotaVenta {
+    +Id: int
+    +ProductoId: int
+    +Sku: string
+    +NombreProducto: string
+    +Cantidad: int {> 0}
+    +PrecioUnitario: decimal
+    +Subtotal: decimal
+  }
+  enum EstadoNota {
+    Pendiente
+    Pagada
+    Anulada
+  }
+}
+
+Rol "1" -- "0..*" Usuario : asigna >
+Familia "1" -- "0..*" Producto : agrupa >
+Cliente "1" -- "0..*" NotaVenta : compra >
+NotaVenta "1" *-- "1..*" DetalleNotaVenta : contiene >
+NotaVenta ..> EstadoNota
+
+Usuario "1" .. "0..*" NotaVenta : emite\n(VendedorId, sin FK) >
+Producto "1" .. "0..*" DetalleNotaVenta : copia de SKU,\nnombre y precio\n(ProductoId, sin FK) >
+
+note bottom of DetalleNotaVenta
+  Guarda una copia del producto al momento de la venta:
+  si cambia el precio o se elimina el producto,
+  la nota conserva su historial.
+end note
+@enduml
