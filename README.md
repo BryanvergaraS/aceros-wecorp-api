@@ -1,128 +1,163 @@
-# API Aceros We-Corp
+# Sistema de ventas Aceros We-Corp
 
-Trabajo 2 de Construcción de Software. Autor: Bryan Vergara Santander.
+Proyecto integrador de **Construcción de Software — Evaluación 3** (Instituto Virginio Gómez).
+Equipo: **Bryan Vergara Santander** y **Aníbal Rodríguez**. Docente: Enso Guidotti.
 
-API RESTful en ASP.NET Core (.NET 10) para gestionar el catálogo de productos de **Aceros We-Corp**, barraca de fierros de Nacimiento, Biobío. El sistema tiene dos roles: el **Administrador** gestiona el catálogo y el **Vendedor** lo consulta y emite notas de venta. Incluye un frontend en React.
+Aceros We-Corp es una barraca de fierros de Nacimiento (Biobío). El sistema centraliza el catálogo de productos
+y la emisión de notas de venta, con control de acceso por rol y descuento automático de stock.
 
-## Estructura
+| Componente | Carpeta | Tecnología | Puerto local |
+|---|---|---|---|
+| API de Catálogo e Identidad | `api-catalogo/` | ASP.NET Core 10 (controladores), EF Core, SQL Server | 5081 |
+| API de Ventas | `api-ventas/` | ASP.NET Core 10 (controladores), EF Core, SQL Server, IHttpClientFactory | 5082 |
+| Cliente web | `cliente-web/` | React 19 + Vite | 5173 (dev) / 8080 (Docker) |
+| Documentación | `docs/` | PlantUML, OpenAPI 3, Markdown | — |
+
+- **Catálogo e Identidad** emite el JWT (login) y administra familias, productos, stock y usuarios.
+- **Ventas** valida ese JWT y administra clientes y notas de venta. Para emitir o anular una nota llama a Catálogo
+  con un cliente HTTP tipado (timeout de 5 s y 2 reintentos; si Catálogo no responde, devuelve 503).
+- Roles: **Administrador** y **Vendedor**.
+
+> **Evolución del Trabajo 2.** Este repositorio contenía la API única del Trabajo 2 (catálogo y notas de venta en una sola
+> API). Esa versión se conserva en la etiqueta [`v1.0-trabajo2`](../../tree/v1.0-trabajo2). El Trabajo 3 la divide en
+> dos APIs independientes (ver `docs/adr/0001-dos-apis-con-base-de-datos-propia.md`).
+
+## Estructura del repositorio
 
 ```
-AcerosWeCorp/
-├── database/                 Script SQL (AcerosWeCorpDB.sql) y diagrama de la base de datos
-├── backend/
-│   ├── AcerosWeCorp.Api/     API: controladores, EF Core, repositorios, middleware, JWT
-│   └── AcerosWeCorp.Api.Tests/  Pruebas de integración (xUnit + WebApplicationFactory)
-└── frontend/                 React + Vite
+.
+├── api-catalogo/
+│   ├── WeCorp.Catalogo.Api/          API (controladores, servicios, repositorios, EF Core)
+│   ├── WeCorp.Catalogo.Api.Tests/    Pruebas de integración (xUnit + WebApplicationFactory)
+│   └── Dockerfile
+├── api-ventas/
+│   ├── WeCorp.Ventas.Api/
+│   ├── WeCorp.Ventas.Api.Tests/
+│   └── Dockerfile
+├── cliente-web/                      React + Vite (Dockerfile y nginx.conf)
+├── docs/
+│   ├── openapi/                      Contratos OpenAPI (diseño primero) y su registro de cambios
+│   ├── diagramas/                    Fuentes PlantUML (.puml) y exportaciones (.png / .svg)
+│   ├── adr/                          Registros de decisiones de arquitectura
+│   ├── trazabilidad.md               Requerimiento → historia de usuario → endpoint → prueba
+│   ├── pruebas/                      Colección Postman y reportes de ejecución de las pruebas
+│   ├── gestion/                      Retrospectivas y capturas del tablero
+│   ├── hito1/                        Caso, ERS v1, backlog y casos de uso (Hito 1)
+│   └── hito2/                        Documento de diseño (Hito 2)
+├── docker-compose.yml
+├── .env.example                      Variables de entorno necesarias (sin valores)
+└── WeCorp.sln
 ```
-
-## Cómo cumple cada requisito
-
-| Requisito | Dónde está |
-| --- | --- |
-| Web API con controladores (sin Minimal API) | `backend/AcerosWeCorp.Api/Controllers` |
-| Middleware propio | `Middleware/RequestLoggingMiddleware.cs` guarda cada petición en la tabla LogsAuditoria. `Middleware/ExceptionHandlingMiddleware.cs` convierte los errores en ProblemDetails |
-| Inyección de dependencias con scopes | `Program.cs`: DbContext, repositorios y servicios son **Scoped**; `TokenService` es **Singleton** |
-| CRUD REST con validación y errores | `ProductosController` (GET, POST, PUT, DELETE), validación con DataAnnotations en `Dtos/`, códigos 200/201/204/400/401/403/404/409/422 |
-| ORM, DbContext y migraciones | `Data/AppDbContext.cs` mapea las 9 tablas del script con sus claves, únicos, CHECK y relaciones |
-| Patrón Repository | `Repositories/` (repositorio genérico más uno por entidad) |
-| Versionamiento | Por URL: `/api/v1/...` (Asp.Versioning) |
-| Swagger | `http://localhost:5080/swagger`, con el botón Authorize para el JWT |
-| Login con JWT y 2 roles | `POST /api/v1/auth/login`; `[Authorize(Roles = ...)]` con Administrador y Vendedor |
-| Secretos fuera del repositorio | La llave JWT, la cadena de conexión y las claves iniciales se leen de user-secrets o variables de entorno |
-| Pruebas de integración | `backend/AcerosWeCorp.Api.Tests` |
-
-## Endpoints (v1)
-
-| Verbo | Ruta | Rol |
-| --- | --- | --- |
-| POST | `/api/v1/auth/login` | Público |
-| GET | `/api/v1/productos?buscar=&familiaId=&pagina=&tamano=` | Administrador, Vendedor |
-| GET | `/api/v1/productos/{id}` | Administrador, Vendedor |
-| POST / PUT / DELETE | `/api/v1/productos[/{id}]` | Administrador |
-| GET / POST / DELETE | `/api/v1/productos/{id}/proveedores[/{proveedorId}]` | Administrador |
-| GET | `/api/v1/familias[/{id}]` | Administrador, Vendedor |
-| POST / PUT / DELETE | `/api/v1/familias[/{id}]` | Administrador |
-| GET / POST / PUT / DELETE | `/api/v1/proveedores[/{id}]` | Administrador |
-| GET / POST | `/api/v1/notas-venta[/{id}]` | Administrador (todas), Vendedor (las suyas) |
-| PATCH | `/api/v1/notas-venta/{id}/estado` | Administrador |
-| GET / POST | `/api/v1/usuarios[/{id}]`, GET `/api/v1/usuarios/roles` | Administrador |
-| GET | `/api/v1/logs-auditoria` | Administrador |
 
 ## Requisitos
 
 - .NET SDK 10
-- SQL Server (Express o Developer) o LocalDB
-- Node.js 20 o superior
+- Node.js 22 y npm
+- SQL Server (Express sirve) **o** Docker Desktop
 - Herramienta de EF Core: `dotnet tool install --global dotnet-ef`
 
-## 1. Configurar los secretos (una sola vez)
+## Configuración (variables de entorno)
 
-Los secretos se guardan con **user-secrets**, que quedan en tu usuario de Windows y no en el proyecto. Desde la carpeta `backend/AcerosWeCorp.Api`:
-
-```powershell
-dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost;Database=AcerosWeCorpDB;Trusted_Connection=True;TrustServerCertificate=True"
-dotnet user-secrets set "Jwt:Key" "una-llave-larga-de-al-menos-32-caracteres-123456"
-dotnet user-secrets set "Seed:AdminEmail" "admin@wecorp.cl"
-dotnet user-secrets set "Seed:AdminPassword" "CambiarEstaClave123"
-dotnet user-secrets set "Seed:VendedorEmail" "vendedor@wecorp.cl"
-dotnet user-secrets set "Seed:VendedorPassword" "CambiarEstaClave123"
-```
-
-Si usas LocalDB, la cadena es `Server=(localdb)\MSSQLLocalDB;Database=AcerosWeCorpDB;Trusted_Connection=True`.
-
-También se pueden usar variables de entorno con doble guion bajo: `ConnectionStrings__DefaultConnection`, `Jwt__Key`, `Seed__AdminEmail`, etc.
-
-## 2. Crear la base de datos con migraciones
+Ningún secreto está en el repositorio. Copie la plantilla y complete los valores:
 
 ```powershell
-cd backend/AcerosWeCorp.Api
-dotnet ef migrations add InicialCreate
-dotnet ef database update
+Copy-Item .env.example .env
 ```
 
-La migración crea las 9 tablas e inserta los datos de ejemplo del script: roles, familias, productos y proveedores. Al arrancar, la API crea el administrador y el vendedor con las credenciales de los secretos.
+| Variable | Usada por | Descripción |
+|---|---|---|
+| `Jwt__Key` | ambas APIs | Llave del JWT, mínimo 32 caracteres. **La misma** en las dos APIs. |
+| `ConnectionStrings__CatalogoDb` | Catálogo | Cadena de conexión a `WeCorpCatalogoDB`. |
+| `ConnectionStrings__VentasDb` | Ventas | Cadena de conexión a `WeCorpVentasDB`. |
+| `Catalogo__BaseUrl` | Ventas | URL de la API de Catálogo (local: `http://localhost:5081`). |
+| `Seed__AdminEmail`, `Seed__AdminPassword` | Catálogo | Administrador inicial que se crea al arrancar. |
+| `Seed__VendedorEmail`, `Seed__VendedorPassword` | Catálogo | Vendedor de prueba que se crea al arrancar. |
+| `SA_PASSWORD` | docker compose | Contraseña del usuario `sa` del contenedor de SQL Server. |
 
-`database/AcerosWeCorpDB.sql` crea la misma base directamente en SQL Server, sin pasar por EF Core.
+En desarrollo (`dotnet run`), cada API lee el archivo `.env` de la raíz automáticamente. En Docker, las variables
+se pasan a los contenedores desde `docker-compose.yml`. El archivo `.env` está en `.gitignore`.
 
-## 3. Ejecutar la API
+## Opción A — Ejecutar todo con Docker (un solo comando)
+
+Requiere que las carpetas `Migrations` de cada API estén en el repositorio (se generan una vez, ver Opción B, paso 1).
 
 ```powershell
-cd backend/AcerosWeCorp.Api
-dotnet run
+docker compose up --build
 ```
 
-Swagger queda en http://localhost:5080/swagger. Primero llama a `POST /api/v1/auth/login`, copia el `token` y pégalo en **Authorize**.
+| Servicio | URL |
+|---|---|
+| Cliente web | http://localhost:8080 |
+| Swagger Catálogo | http://localhost:5081/swagger |
+| Swagger Ventas | http://localhost:5082/swagger |
+| Health checks | http://localhost:5081/health · http://localhost:5082/health |
 
-## 4. Ejecutar las pruebas de integración
+Al arrancar, cada API aplica sus migraciones y crea su base de datos en el contenedor de SQL Server.
+
+## Opción B — Ejecutar en local (sin Docker)
+
+1. **Migraciones** (solo la primera vez, si la carpeta `Migrations` no existe en cada API):
+   ```powershell
+   cd api-catalogo\WeCorp.Catalogo.Api
+   dotnet ef migrations add InicialCreate
+   cd ..\..\api-ventas\WeCorp.Ventas.Api
+   dotnet ef migrations add InicialCreate
+   cd ..\..
+   ```
+   Las bases de datos se crean al arrancar cada API (`Database.Migrate()`).
+
+2. **API de Catálogo** (terminal 1):
+   ```powershell
+   cd api-catalogo\WeCorp.Catalogo.Api
+   dotnet run
+   ```
+
+3. **API de Ventas** (terminal 2):
+   ```powershell
+   cd api-ventas\WeCorp.Ventas.Api
+   dotnet run
+   ```
+
+4. **Cliente web** (terminal 3):
+   ```powershell
+   cd cliente-web
+   npm install
+   npm run dev
+   ```
+   Abra http://localhost:5173. Vite reenvía `/catalogo` a la API de Catálogo y `/ventas` a la de Ventas.
+
+## Pruebas
 
 ```powershell
-cd backend
-dotnet test AcerosWeCorp.Api.Tests --logger "console;verbosity=normal"
+dotnet test WeCorp.sln
 ```
 
-Las pruebas levantan la API completa en memoria con una base de datos en memoria, así que no necesitan SQL Server. Cubren el login, las respuestas 401 sin token y 403 por rol, el CRUD de productos, las validaciones 400/404/409, el stock insuficiente (422), el descuento y la devolución de stock en las notas de venta, y el registro del middleware en LogsAuditoria.
-
-Para el informe, se puede exportar un reporte: `dotnet test --logger "trx;LogFileName=resultados.trx"`.
-
-## 5. Ejecutar el frontend
-
-Con la API corriendo:
+Las pruebas de integración levantan cada API completa con `WebApplicationFactory` y una base en memoria.
+En la API de Ventas, la API de Catálogo se reemplaza por un doble de prueba y, además, se prueba `CatalogoClient`
+con respuestas simuladas (422, errores de red, reintentos). Para guardar el reporte de ejecución:
 
 ```powershell
-cd frontend
-npm install
-npm run dev
+dotnet test WeCorp.sln --logger "trx;LogFileName=resultados.trx" --results-directory docs/pruebas
 ```
 
-Abrir http://localhost:5173. Vite redirige `/api` a la API, así que no hace falta configurar CORS.
+**Colección de pruebas de las APIs (Postman):** `docs/pruebas/AcerosWeCorp.postman_collection.json` y el entorno
+`docs/pruebas/AcerosWeCorp.postman_environment.json`. Importe ambos, complete las credenciales en el entorno
+(no se suben al repositorio) y ejecute la colección en orden con el Collection Runner, con las dos APIs corriendo.
+Recorre login, 401/403/400/409, CRUD, emisión de una nota con descuento de stock en Catálogo, 422, anulación con
+reposición de stock y los health checks. Si la ejecuta más de una vez, cambie `rutCliente` en el entorno.
 
-Optimizaciones del frontend:
-- Cada pantalla se descarga solo al abrirla (`React.lazy`).
-- React y el router van en un archivo aparte que el navegador mantiene en caché.
-- Los productos se paginan en el servidor.
-- La búsqueda espera 300 ms a que el usuario deje de escribir y cancela la petición anterior con `AbortController`.
-- Las familias se piden una sola vez por sesión.
-- Los formateadores de moneda y fecha se crean una sola vez.
-- Las filas de la tabla usan `memo`.
-- Las fuentes son autoalojadas, solo el subconjunto latino.
-- No usa librerías de UI.
+## Documentación
+
+- Contratos: `docs/openapi/catalogo-v1.yaml`, `docs/openapi/ventas-v1.yaml` (y Swagger en cada API).
+- Diagramas: `docs/diagramas/` — casos de uso, clases de dominio, ER de cada base, arquitectura, 3 secuencias, despliegue y estados.
+- Decisiones: `docs/adr/`.
+- Trazabilidad: `docs/trazabilidad.md`.
+
+Para regenerar las imágenes de los diagramas: extensión PlantUML de VS Code (Alt + D) o
+`java -jar plantuml.jar -tpng -tsvg docs/diagramas/*.puml`.
+
+## Flujo de trabajo con Git
+
+- `main` protegida: solo se integra mediante **pull request revisado por el otro integrante**.
+- Una rama por historia o tarea: `feature/HU09-emitir-nota`, `docs/diagramas-hito2`, etc.
+- Tablero en GitHub Projects con las columnas Backlog, Sprint actual, En progreso, En revisión y Terminado.
