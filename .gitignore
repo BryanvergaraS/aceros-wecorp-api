@@ -1,16 +1,23 @@
+# Secretos: nunca al repositorio
+.env
+*.env.local
+appsettings.Development.json
+secrets.json
+
 # .NET
 bin/
 obj/
-.vs/
 *.user
+.vs/
 TestResults/
+*.trx
 
-# Secretos (nunca al repositorio)
-.env
-.env.*
-!.env.example
-appsettings.*.local.json
-
-# Frontend
+# Node / Vite
 node_modules/
 dist/
+
+# Editores y sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
