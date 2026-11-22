@@ -66,7 +66,15 @@ function crearApi(base) {
     }
 
     if (res.status === 204) return null
-    const datos = res.headers.get('content-type')?.includes('json') ? await res.json().catch(() => null) : null
+    let datos = null
+    if (res.headers.get('content-type')?.includes('json')) {
+      try {
+        datos = await res.json()
+      } catch (e) {
+        if (!(e instanceof SyntaxError)) throw e
+        if (res.ok) throw new ApiError(res.status, 'El servidor devolvió una respuesta inválida.')
+      }
+    }
 
     if (!res.ok) {
       // 401 con token = token vencido o inválido: se cierra la sesión y se avisa.
