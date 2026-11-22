@@ -16,6 +16,7 @@ public static class RutChileno
         var cuerpo = limpio[..^1];
         var dv = limpio[^1];
         if (cuerpo.Length > 8 || !cuerpo.All(char.IsAsciiDigit)) return null;
+        if (cuerpo.All(c => c == '0')) return null;
         if (!char.IsAsciiDigit(dv) && dv != 'K') return null;
 
         return $"{int.Parse(cuerpo)}-{dv}";

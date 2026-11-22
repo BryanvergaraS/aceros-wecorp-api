@@ -31,6 +31,15 @@ public class ClientesTests(ApiFactory factory) : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task Crear_ConRutCero_Devuelve400()
+    {
+        var respuesta = await factory.ClienteVendedor().PostAsJsonAsync("/api/v1/clientes",
+            new { rut = "0-0", nombre = "RUT inválido" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, respuesta.StatusCode);
+    }
+
+    [Fact]
     public async Task Crear_ConRutRepetido_Devuelve409()
     {
         // 11.111.111-1 es un cliente de los datos semilla.
