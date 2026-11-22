@@ -239,6 +239,10 @@ mantiene Pendiente. Pagada y Anulada son estados finales.
   una instancia local `MSSQL$SQLEXPRESS`.
 - Alinear ADR/diagramas con el transporte real: el diagrama de arquitectura muestra HTTPS, pero launchSettings, Compose y
   servidores locales exponen HTTP. Usar TLS en el despliegue real.
+- Hacer recuperable la asignación del folio: la nota se guarda inicialmente con `TMP-...` y el `NV-...` se persiste en
+  una segunda escritura fuera de la compensación. Si falla, la nota podría quedar con el folio temporal.
+- Informar el fallo al refrescar el caché de familias; `Familias.jsx` actualmente descarta esa excepción con
+  `.catch(() => {})`, por lo que la interfaz podría conservar datos desactualizados sin avisar.
 - Restringir `GET /api/v1/productos/{id}` para que un Vendedor no pueda consultar por ID un producto inactivo, coherente
   con el filtro del listado.
 - Evaluar limitación de intentos de login, auditoría de cambios de stock/estado y revocación de sesión. El JWT dura 60

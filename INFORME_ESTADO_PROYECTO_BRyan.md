@@ -81,16 +81,22 @@ durante esta revisión**.
 2. **Crítico — resultado ambiguo de movimientos:** no hay idempotencia/correlación para una operación cuyo stock se
    aplicó pero cuya respuesta se perdió. Agregar idempotencia y una forma de reconciliar movimientos; hasta entonces,
    revisar stock/logs ante 503 antes de repetir.
-3. Bryan debe revisar y aprobar los PR #3 y #5 antes de integrarlos, conforme al flujo de trabajo acordado.
-4. Completar la revisión cruzada del PR de Catálogo cuando Bryan lo publique; la rama `feature/api-catalogo` no estaba
+3. **Importante — folio temporal persistido:** `CrearAsync` guarda primero la nota con `TMP-...`, y guarda el folio
+   `NV-...` en una segunda operación fuera del bloque de compensación. Si ese segundo guardado falla, la nota puede
+   permanecer registrada con un folio temporal, aunque Catálogo ya descontó el stock. Definir una persistencia atómica
+   del registro/folio o una recuperación explícita y probar el fallo del segundo guardado.
+4. Bryan debe revisar y aprobar los PR #3 y #5 antes de integrarlos, conforme al flujo de trabajo acordado.
+5. Completar la revisión cruzada del PR de Catálogo cuando Bryan lo publique; la rama `feature/api-catalogo` no estaba
    disponible en el remoto durante la revisión.
-5. Ejecutar integración manual con SQL Server y Docker Compose; probar login, crear cliente, emitir venta, confirmar
+6. Ejecutar integración manual con SQL Server y Docker Compose; probar login, crear cliente, emitir venta, confirmar
    descuento, anular y confirmar reposición.
-6. Ejecutar las verificaciones con Node 22 LTS; ampliar pruebas de interfaz y de cancelación/compensación.
-7. Alinear el diagrama de arquitectura que muestra HTTPS con la configuración que realmente sirve HTTP en local/Compose.
+7. Ejecutar las verificaciones con Node 22 LTS; ampliar pruebas de interfaz y de cancelación/compensación.
+8. Alinear el diagrama de arquitectura que muestra HTTPS con la configuración que realmente sirve HTTP en local/Compose.
    El despliegue real debe usar TLS.
-8. Revisar que un vendedor no pueda leer por `GET /productos/{id}` un producto inactivo, coherente con el filtro del listado.
-9. Completar las retrospectivas de `docs/gestion/retrospectivas.md` y mantener contratos/documentación sincronizados.
+9. Revisar que un vendedor no pueda leer por `GET /productos/{id}` un producto inactivo, coherente con el filtro del listado.
+10. Evitar que el refresco del caché de familias en `Familias.jsx` descarte errores con `.catch(() => {})`; mostrar o
+    registrar el fallo para que el usuario sepa que el formulario puede estar usando datos desactualizados.
+11. Completar las retrospectivas de `docs/gestion/retrospectivas.md` y mantener contratos/documentación sincronizados.
 
 ## F. Observaciones importantes
 
@@ -98,6 +104,9 @@ durante esta revisión**.
   guardado de Ventas, pero la compensación puede fallar si Catálogo tampoco responde.
 - `CatalogoClient` limita reintentos a fallos de conexión donde la solicitud no llegó; no reintenta timeout ni 5xx para
   evitar duplicar un movimiento no idempotente.
+- El folio se actualiza en una segunda escritura después de guardar la nota. Un fallo en esa escritura puede dejar el
+  `TMP-...` persistido; también se descarta silenciosamente un error al refrescar el caché de familias. Ambos casos
+  quedaron como pendientes, sin cambios de lógica en esta revisión.
 - El JWT está en `sessionStorage` y no se revoca en servidor. Desactivar un usuario impide nuevos logins, pero tokens ya
   emitidos pueden seguir válidos hasta expirar.
 - Las pruebas de concurrencia y restricciones de base requieren SQL Server para acreditar el comportamiento del proveedor
@@ -112,8 +121,10 @@ durante esta revisión**.
 1. Acordar e implementar control de acceso de servicio para el endpoint de reposición, con pruebas de autorización y
    regresión de compensación.
 2. Diseñar idempotencia/correlación de movimientos y procedimiento de conciliación para timeouts.
-3. Pedir a Bryan revisión de PR #3 y #5; integrar solo tras aprobación. Luego sincronizar la guía con el `main` resultante.
-4. Completar revisión cruzada de Catálogo al existir su PR.
-5. Ejecutar un ensayo completo en Docker/SQL Server y la prueba funcional desde la interfaz, guardando evidencia.
-6. Corregir el esquema HTTP/HTTPS del despliegue y hacer pruebas con Node 22.
-7. Cerrar documentación y retrospectivas, actualizar trazabilidad y repetir suite completa.
+3. Hacer atómica o recuperable la asignación del folio de la nota y agregar una prueba del fallo en la segunda escritura.
+4. Reportar errores del refresco del caché de familias en vez de descartarlos.
+5. Pedir a Bryan revisión de PR #3 y #5; integrar solo tras aprobación. Luego sincronizar la guía con el `main` resultante.
+6. Completar revisión cruzada de Catálogo al existir su PR.
+7. Ejecutar un ensayo completo en Docker/SQL Server y la prueba funcional desde la interfaz, guardando evidencia.
+8. Corregir el esquema HTTP/HTTPS del despliegue y hacer pruebas con Node 22.
+9. Cerrar documentación y retrospectivas, actualizar trazabilidad y repetir suite completa.
