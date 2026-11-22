@@ -39,15 +39,20 @@ validado un despliegue conectado a SQL Server o Docker.
 
 ## C. Cambios registrados en Git
 
-Commit de documentación creado durante esta revisión:
+Commits de documentación creados durante esta revisión:
 
 - `7855152` — `docs: agregar guia de usuario y defensa`: añade la guía de presentación/uso y corrige instrucciones del README.
-
-El commit final de esta revisión agrega este informe; su identificador queda registrado en el historial de
-`docs/auditoria-presentacion` y en la entrega de esta tarea.
+- `f159038` — `docs: agregar informe de estado para Bryan`: incorpora este informe.
+- `450349f` — `docs: ampliar hallazgos de auditoria`: agrega los hallazgos adicionales del folio temporal y el refresco
+  silencioso de familias a la guía y al informe.
+- Un commit posterior de documentación actualiza esta sección; su identificador final se indica en la entrega y en el
+  historial de `docs/auditoria-presentacion`.
 
 Estado de ramas/PR observado durante la revisión:
 
+- PR [#6 documentación de auditoría](https://github.com/BryanvergaraS/aceros-wecorp-api/pull/6): abierto desde
+  `docs/auditoria-presentacion`, con Bryan solicitado como revisor; la comprobación de GitHub indicó estado integrable
+  al momento de crear el PR.
 - PR [#3 API de Ventas](https://github.com/BryanvergaraS/aceros-wecorp-api/pull/3): abierto, rama `feature/api-ventas`,
   head `b93e278` (`fix(ventas): rechazar RUT con cuerpo cero`).
 - PR [#5 corrección del cliente web](https://github.com/BryanvergaraS/aceros-wecorp-api/pull/5): abierto, rama
