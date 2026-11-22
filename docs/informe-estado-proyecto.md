@@ -13,7 +13,7 @@
   persistencia, compensación y los proxies del cliente.
 - Se verificó el historial/estado remoto: PR #4 del cliente web ya está integrado; PR #3 de Ventas y PR #5 del cambio
   posterior del cliente siguen abiertos y solicitan a Bryan como revisor.
-- Se añadió [`docs/guia-presentacion-y-usuario.md`](docs/guia-presentacion-y-usuario.md), con explicación del sistema,
+- Se añadió [`docs/guia-presentacion-y-usuario.md`](guia-presentacion-y-usuario.md), con explicación del sistema,
   arquitectura, módulos, flujo, manual de ejecución/uso, conceptos de defensa, preguntas y respuestas y auditoría
   priorizada.
 - Se corrigió el README para aclarar que las migraciones iniciales ya están incluidas y que `dotnet-ef` se necesita
