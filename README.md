@@ -150,9 +150,7 @@ dotnet test WeCorp.sln --logger "trx;LogFileName=resultados.trx" --results-direc
 Recorre login, 401/403/400/409, CRUD, emisión de una nota con descuento de stock en Catálogo, 422, anulación con
 reposición de stock y los health checks. Si la ejecuta más de una vez, cambie `rutCliente` en el entorno.
 
-**Cliente web:** desde `cliente-web/`, ejecute `npm ci`, `npm test` y `npm run build`. El script `npm test` está
-disponible en la rama/actualización que añade la prueba del cliente; si aún no está integrada en su `main`, use
-`npm run build` para verificar el cliente actual.
+**Cliente web:** desde `cliente-web/`, ejecute `npm ci`, `npm test` y `npm run build`.
 
 ## Documentación
 
