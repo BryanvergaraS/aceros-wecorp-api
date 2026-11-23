@@ -54,7 +54,9 @@ y la emisión de notas de venta, con control de acceso por rol y descuento autom
 - .NET SDK 10
 - Node.js 22 y npm
 - SQL Server (Express sirve) **o** Docker Desktop
-- Herramienta de EF Core: `dotnet tool install --global dotnet-ef`
+
+Las migraciones iniciales de ambas APIs ya están incluidas y se aplican al arrancar. `dotnet-ef` solo es necesario para
+crear migraciones nuevas al cambiar el modelo.
 
 ## Configuración (variables de entorno)
 
@@ -79,7 +81,7 @@ se pasan a los contenedores desde `docker-compose.yml`. El archivo `.env` está 
 
 ## Opción A — Ejecutar todo con Docker (un solo comando)
 
-Requiere que las carpetas `Migrations` de cada API estén en el repositorio (se generan una vez, ver Opción B, paso 1).
+Las migraciones iniciales ya están incluidas en `api-catalogo/` y `api-ventas/`.
 
 ```powershell
 docker compose up --build
@@ -96,12 +98,14 @@ Al arrancar, cada API aplica sus migraciones y crea su base de datos en el conte
 
 ## Opción B — Ejecutar en local (sin Docker)
 
-1. **Migraciones** (solo la primera vez, si la carpeta `Migrations` no existe en cada API):
+1. **Migraciones:** las iniciales ya están incluidas y se aplican al arrancar. Solo si cambias el modelo y necesitas
+   crear una migración nueva, instala la herramienta y ejecuta:
    ```powershell
+   dotnet tool install --global dotnet-ef
    cd api-catalogo\WeCorp.Catalogo.Api
-   dotnet ef migrations add InicialCreate
+   dotnet ef migrations add NombreDelCambio
    cd ..\..\api-ventas\WeCorp.Ventas.Api
-   dotnet ef migrations add InicialCreate
+   dotnet ef migrations add NombreDelCambio
    cd ..\..
    ```
    Las bases de datos se crean al arrancar cada API (`Database.Migrate()`).
@@ -146,12 +150,15 @@ dotnet test WeCorp.sln --logger "trx;LogFileName=resultados.trx" --results-direc
 Recorre login, 401/403/400/409, CRUD, emisión de una nota con descuento de stock en Catálogo, 422, anulación con
 reposición de stock y los health checks. Si la ejecuta más de una vez, cambie `rutCliente` en el entorno.
 
+**Cliente web:** desde `cliente-web/`, ejecute `npm ci`, `npm test` y `npm run build`.
+
 ## Documentación
 
 - Contratos: `docs/openapi/catalogo-v1.yaml`, `docs/openapi/ventas-v1.yaml` (y Swagger en cada API).
 - Diagramas: `docs/diagramas/` — casos de uso, clases de dominio, ER de cada base, arquitectura, 3 secuencias, despliegue y estados.
 - Decisiones: `docs/adr/`.
 - Trazabilidad: `docs/trazabilidad.md`.
+- Uso, explicación para la defensa y auditoría técnica: [`docs/guia-presentacion-y-usuario.md`](docs/guia-presentacion-y-usuario.md).
 
 Para regenerar las imágenes de los diagramas: extensión PlantUML de VS Code (Alt + D) o
 `java -jar plantuml.jar -tpng -tsvg docs/diagramas/*.puml`.
