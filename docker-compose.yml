@@ -1,0 +1,63 @@
+# Sistema de ventas Aceros We-Corp — ejecución completa con un solo comando:
+#   docker compose up --build
+# Requiere un archivo .env en esta carpeta (copiar .env.example y completar los valores).
+name: aceros-wecorp
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:?Defina SA_PASSWORD en .env}
+    ports:
+      - "14330:1433"
+    volumes:
+      - sqldata:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  api-catalogo:
+    build: ./api-catalogo
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Jwt__Key: ${Jwt__Key:?Defina Jwt__Key en .env}
+      ConnectionStrings__CatalogoDb: "Server=sqlserver,1433;Database=WeCorpCatalogoDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
+      Seed__AdminEmail: ${Seed__AdminEmail:-}
+      Seed__AdminPassword: ${Seed__AdminPassword:-}
+      Seed__VendedorEmail: ${Seed__VendedorEmail:-}
+      Seed__VendedorPassword: ${Seed__VendedorPassword:-}
+    ports:
+      - "5081:8080"
+
+  api-ventas:
+    build: ./api-ventas
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      api-catalogo:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Jwt__Key: ${Jwt__Key:?Defina Jwt__Key en .env}
+      ConnectionStrings__VentasDb: "Server=sqlserver,1433;Database=WeCorpVentasDB;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
+      Catalogo__BaseUrl: http://api-catalogo:8080
+    ports:
+      - "5082:8080"
+
+  cliente-web:
+    build: ./cliente-web
+    depends_on:
+      - api-catalogo
+      - api-ventas
+    ports:
+      - "8080:80"
+
+volumes:
+  sqldata:
